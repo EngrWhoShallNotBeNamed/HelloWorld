@@ -1,0 +1,69 @@
+# ------------------------------------------------------------------------------
+# The image we are building with THIS Dockerfile is based on the ubuntu:18.04
+# Docker image from dockerhub (hub.docker.com).
+# ------------------------------------------------------------------------------
+FROM ubuntu:18.04
+
+# ------------------------------------------------------------------------------
+# Install Trick Dependencies identified at
+# https://nasa.github.io/trick/documentation/install_guide/Install-Guide#ubuntu
+# ------------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y \
+bison \
+clang \
+flex \
+git \
+llvm \
+make \
+maven \
+swig \
+cmake \
+curl \
+g++ \
+libx11-dev \
+libxml2-dev \
+libxt-dev \
+libmotif-common \
+libmotif-dev \
+python3-dev \
+zlib1g-dev \
+llvm-dev \
+libclang-dev \
+libudunits2-dev \
+libgtest-dev \
+openjdk-11-jdk \
+zip
+
+ENV PYTHON_VERSION=3
+
+# ------------------------------------------------------------------------------
+# Get Trick version 19.5.1 from GitHub, configure and build it.
+# ------------------------------------------------------------------------------
+# We want to clone Trick into the /apps directory of our image.
+WORKDIR /apps
+# Get the 19.5.1 branch (an official release) of Trick from Github.
+RUN git clone -b 19.5.1 https://github.com/nasa/trick.git
+# cd into the directory we just created and ..
+WORKDIR /apps/trick
+# configure and make Trick.
+RUN ./configure && make
+
+# ------------------------------------------------------------------------------
+# Add ${TRICK_HOME}/bin to the PATH variable.
+# ------------------------------------------------------------------------------
+ENV TRICK_HOME="/apps/trick"
+RUN echo "export PATH=${PATH}:${TRICK_HOME}/bin" >> ~/.bashrc
+
+ARG myuser
+ARG myuid
+ARG mygid
+
+RUN if [ ! $(getent group $mygid) ]; then groupadd -g $mygid $myuser; fi
+RUN adduser -u $myuid --gid $mygid $myuser
+RUN addgroup wheel
+RUN passwd -d $myuser
+RUN usermod -aG wheel $myuser
+
+WORKDIR /home/$myuser
+# Run a bash shell
+CMD ["/bin/bash"]
