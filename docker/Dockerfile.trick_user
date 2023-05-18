@@ -2,45 +2,11 @@
 # The image we are building with THIS Dockerfile is based on the ubuntu:18.04
 # Docker image from dockerhub (hub.docker.com).
 # ------------------------------------------------------------------------------
-FROM ubuntu:18.04
+ARG myuser
+ARG myuid
+ARG mygid
 
-# ------------------------------------------------------------------------------
-# Install Trick Dependencies identified at
-# https://nasa.github.io/trick/documentation/install_guide/Install-Guide#ubuntu
-# ------------------------------------------------------------------------------
-RUN apt-get update && apt-get install -y \
-bison \
-clang \
-flex \
-git \
-llvm \
-make \
-maven \
-swig \
-cmake \
-curl \
-g++ \
-libx11-dev \
-libxml2-dev \
-libxt-dev \
-libmotif-common \
-libmotif-dev \
-python3-dev \
-python3-pip \
-zlib1g-dev \
-llvm-dev \
-libclang-dev \
-libudunits2-dev \
-libgtest-dev \
-openjdk-11-jdk \
-zip \
-sudo \
-vim
-
-ENV PYTHON_VERSION=3
-
-# Install user packages outside of Trick
-RUN python3 -m pip install ipython
+FROM trick-${myuser}:base
 
 ARG myuser
 ARG myuid
@@ -57,27 +23,17 @@ WORKDIR /home/$myuser
 CMD ["/bin/bash"]
 
 # Now that packages are installed, let's choose to install trick in user directory
-USER $myuser
-RUN whoami
-RUN mkdir -p /home/$myuser/workspace
-WORKDIR /home/$myuser/workspace
+# Update bashrc file and clone trick into user space
+RUN su $myuser -c "echo;                                                       \
+                   echo '------- my_user: $my_user  '; \
+                   echo 'export MAKEFLAGS=-j\`nproc\`' >> /home/$myuser/.bashrc; \                  
+                   echo 'export TRICK_HOME='/home/$myuser/workspace/trick'' >> /home/$myuser/.bashrc;  \ 
+                   echo 'export PATH=\"${PATH}:\${TRICK_HOME}/bin\"' >> /home/$myuser/.bashrc;  \ 
+                   mkdir -p /home/$myuser/workspace; \
+                   cd /home/$myuser/workspace; \
+                   export MAKEFLAGS=-j`nproc`; \
+                   git clone -b 19.5.1 https://github.com/nasa/trick.git;   \ 
+                   cd /home/$myuser/workspace/trick;   \ 
+                   ./configure; \
+                   make; "
 
-# ------------------------------------------------------------------------------
-# Get Trick version 19.5.1 from GitHub, configure and build it.
-# ------------------------------------------------------------------------------
-# Get the 19.5.1 branch (an official release) of Trick from Github.
-RUN git clone -b 19.5.1 https://github.com/nasa/trick.git
-# cd into the directory we just created and ..
-WORKDIR /home/$myuser/workspace/trick
-# configure and make Trick.
-RUN ./configure && make
-
-# ------------------------------------------------------------------------------
-# Add ${TRICK_HOME}/bin to the PATH variable.
-# ------------------------------------------------------------------------------
-ENV TRICK_HOME="/home/$(myuser)/workspace/trick"
-RUN echo "export PATH=${PATH}:${TRICK_HOME}/bin" >> ~/.bashrc
-
-# Change back to root to enter image
-USER root
-WORKDIR /home/$myuser/

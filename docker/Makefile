@@ -9,9 +9,12 @@ MYGID := $(shell id -g ${USER})
 MYNAME := $(shell whoami)
 LMYNAME := $(shell echo $(MYNAME) | tr A-Z a-z)
 
-.PHONY: build build build-trick run run-trick
+.PHONY: build build build-trick build-trick-base run run-trick
 
-build build-trick:
+build-trick-base:
+	docker build -t trick-$(LMYNAME):base -f Dockerfile .
+
+build build-trick: build-trick-base
 	docker build --build-arg myuser=$(LMYNAME) \
 	--build-arg myuid=$(MYUID) --build-arg mygid=$(MYGID) \
 	-t trick-$(LMYNAME)-img -f Dockerfile.trick_user .
